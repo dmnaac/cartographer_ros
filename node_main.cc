@@ -51,18 +51,22 @@ namespace {
 
 cartographer_ros::Node* node_handle;
 cartographer_ros::TrajectoryOptions* trajectory_options_handle;
+bool localization_mode_flag = false;
 
 void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg) {
-  //Close current trajectories
-  node_handle->FinishAllTrajectories();
+  if (localization_mode_flag)
+  {
+    //Close current trajectories
+    node_handle->FinishAllTrajectories();
 
-  //Set trajectory builder options with new initial pose
-  *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
-  =cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
+    //Set trajectory builder options with new initial pose
+    *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
+    =cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
 
-  //Start a new trajectory with new initial pose
-  if (FLAGS_start_trajectory_with_default_topics) {
-    node_handle->StartTrajectoryWithDefaultTopics(*trajectory_options_handle);
+    //Start a new trajectory with new initial pose
+    if (FLAGS_start_trajectory_with_default_topics) {
+      node_handle->StartTrajectoryWithDefaultTopics(*trajectory_options_handle);
+    }
   }
 }
 
@@ -79,17 +83,20 @@ void Run() {
       cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
   Node node(node_options, std::move(map_builder), &tf_buffer,
             FLAGS_collect_metrics);
+  
+  trajectory_options_handle = &(trajectory_options);
+  node_handle = &(node);
+  
   if (!FLAGS_load_state_filename.empty()) {
     node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
-    //Only in pure localization mode, the /initialpose topic is subscribed.
-    trajectory_options_handle = &(trajectory_options);
-    node_handle = &(node);
-    ros::Subscriber initial_pose_sub = node.node_handle()->subscribe("/initialpose", 1, SetInitialPose);
+    localization_mode_flag = true;
   }
 
   if (FLAGS_start_trajectory_with_default_topics) {
     node.StartTrajectoryWithDefaultTopics(trajectory_options);
   }
+
+  ros::Subscriber initialpose_sub = node.node_handle()->subscribe("/initialpose", 1, SetInitialPose);
 
   ::ros::spin();
 
