@@ -24,6 +24,8 @@
 #include "tf2_ros/transform_listener.h"
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
+#include <utility>
+
 DEFINE_bool(collect_metrics, false,
             "Activates the collection of runtime metrics. If activated, the "
             "metrics can be accessed via a ROS service.");
@@ -46,22 +48,46 @@ DEFINE_string(
     save_state_filename, "",
     "If non-empty, serialize state and write it to disk before shutting down.");
 
+// Template function for getting values of parameters in ROS server
+template<typename Type>
+Type getRosParam(ros::NodeHandle &nodehandle, const std::string &param_name, const Type &default_value){
+  Type param_value;
+  nodehandle.param<Type>(param_name, param_value, default_value);
+  return param_value;
+}
+
 namespace cartographer_ros {
 namespace {
 
 cartographer_ros::Node* node_handle;
 cartographer_ros::TrajectoryOptions* trajectory_options_handle;
 bool localization_mode_flag = false;
+std::vector<std::pair<geometry_msgs::Pose, std::string>> pbstreams;
 
 void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg) {
-  if (localization_mode_flag)
-  {
+  if (localization_mode_flag) {
     //Close current trajectories
     node_handle->FinishAllTrajectories();
+
+    const geometry_msgs::Pose init = msg->pose.pose;
+    std::string floor_name;
+    for (const auto& pair : pbstreams) {
+        if (pair.first.position.x == init.position.x || pair.first.position.y == init.position.y)
+        {
+          floor_name = pair.second
+        }    
+    }
 
     //Set trajectory builder options with new initial pose
     *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
     =cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
+
+    if (!FLAGS_load_state_filename.empty()) {
+      ros::NodeHandle nodehandle("~");
+      FLAGS_load_state_filename = getRosParam<std::string>(nodehandle, floor_name, "");
+      node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+      localization_mode_flag = true;
+    }
 
     //Start a new trajectory with new initial pose
     if (FLAGS_start_trajectory_with_default_topics) {
@@ -86,6 +112,19 @@ void Run() {
   
   trajectory_options_handle = &(trajectory_options);
   node_handle = &(node);
+  ros::NodeHandle nodehandle("~");
+
+  int num_floors = getRosParam<int>(nodehandle, "/number_of_floors", 1);
+  for (size_t i = 0; i < num_floors; i++)
+  {
+    std::string floor = "FLOOR_" + std::to_string(i+1);
+    std::pair<geometry_msgs::Pose, std::string> tempPair;
+    tempPair.first.position.x = getRosParam<double>(nodehandle, floor + "_init_pos_x", 0.0);
+    tempPair.first.position.y = getRosParam<double>(nodehandle, floor + "_init_pos_y", 0.0);
+    tempPair.first.position.z = 0.0;
+    tempPair.second = floor + "_pbstream";
+    pbstreams.push_back(tempPair);
+  }
   
   if (!FLAGS_load_state_filename.empty()) {
     node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
