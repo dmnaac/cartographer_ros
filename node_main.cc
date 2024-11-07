@@ -74,7 +74,7 @@ void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &ms
     for (const auto& pair : pbstreams) {
         if (pair.first.position.x == init.position.x || pair.first.position.y == init.position.y)
         {
-          floor_name = pair.second
+          floor_name = pair.second;
         }    
     }
 
@@ -85,7 +85,7 @@ void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &ms
     if (!FLAGS_load_state_filename.empty()) {
       ros::NodeHandle nodehandle("~");
       FLAGS_load_state_filename = getRosParam<std::string>(nodehandle, floor_name, "");
-      node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+      node_handle->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
       localization_mode_flag = true;
     }
 
@@ -115,7 +115,7 @@ void Run() {
   ros::NodeHandle nodehandle("~");
 
   int num_floors = getRosParam<int>(nodehandle, "/number_of_floors", 1);
-  for (size_t i = 0; i < num_floors; i++)
+  for (int i = 0; i < num_floors; i++)
   {
     std::string floor = "FLOOR_" + std::to_string(i+1);
     std::pair<geometry_msgs::Pose, std::string> tempPair;
