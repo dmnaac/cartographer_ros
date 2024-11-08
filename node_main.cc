@@ -64,6 +64,10 @@ cartographer_ros::TrajectoryOptions* trajectory_options_handle;
 bool localization_mode_flag = false;
 std::vector<std::pair<geometry_msgs::Pose, std::string>> pbstreams;
 
+bool isEqual(double a, double b, double epsilon = 1e-9) {
+    return std::fabs(a - b) < epsilon;
+}
+
 void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg) {
   if (localization_mode_flag) {
     //Close current trajectories
@@ -71,18 +75,20 @@ void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &ms
 
     const geometry_msgs::Pose init = msg->pose.pose;
     std::string floor_name;
+    bool foundMatched = false;
     for (const auto& pair : pbstreams) {
-        if (pair.first.position.x == init.position.x || pair.first.position.y == init.position.y)
-        {
-          floor_name = pair.second;
-        }    
+      if (isEqual(pair.first.position.x, init.position.x)&&isEqual(pair.first.position.y, init.position.y)) {
+        floor_name = pair.second;
+        foundMatched = true;
+        ROS_INFO("Found matched pbstream.");
+      }    
     }
 
     //Set trajectory builder options with new initial pose
     *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
     =cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
 
-    if (!FLAGS_load_state_filename.empty()) {
+    if (foundMatched) {
       ros::NodeHandle nodehandle("~");
       FLAGS_load_state_filename = getRosParam<std::string>(nodehandle, floor_name, "");
       node_handle->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
@@ -117,11 +123,15 @@ void Run() {
   int num_floors = getRosParam<int>(nodehandle, "/number_of_floors", 1);
   for (int i = 0; i < num_floors; i++)
   {
-    std::string floor = "FLOOR_" + std::to_string(i+1);
+    std::string floor = "/FLOOR_" + std::to_string(i+1);
     std::pair<geometry_msgs::Pose, std::string> tempPair;
     tempPair.first.position.x = getRosParam<double>(nodehandle, floor + "_init_pos_x", 0.0);
     tempPair.first.position.y = getRosParam<double>(nodehandle, floor + "_init_pos_y", 0.0);
     tempPair.first.position.z = 0.0;
+    tempPair.first.orientation.x = 0.0;
+    tempPair.first.orientation.y = 0.0;
+    tempPair.first.orientation.z = 0.0;
+    tempPair.first.orientation.w = 1.0;
     tempPair.second = floor + "_pbstream";
     pbstreams.push_back(tempPair);
   }
