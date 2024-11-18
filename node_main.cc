@@ -50,7 +50,6 @@ namespace cartographer_ros
 {
   namespace
   {
-
     cartographer_ros::Node *node_handle;
     cartographer_ros::TrajectoryOptions *trajectory_options_handle;
     bool localization_mode_flag = false;
@@ -59,60 +58,59 @@ namespace cartographer_ros
     {
       if (localization_mode_flag)
       {
+        node_handle->FinishAllTrajectories();
         ::cartographer::mapping::proto::InitialTrajectoryPose initial_trajectory_pose;
         initial_trajectory_pose.set_to_trajectory_id(0);
         *initial_trajectory_pose.mutable_relative_pose() = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
         initial_trajectory_pose.set_timestamp(cartographer::common::ToUniversal(cartographer_ros::FromRos(ros::Time(0))));
         *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose() = initial_trajectory_pose;
-        int new_trajectory_id = AddTrajectory(*trajectory_options_handle);
+        node_handle->StartTrajectoryWithDefaultTopics(*trajectory_options_handle);
       }
     }
-  }
 
-  void Run()
-  {
-    constexpr double kTfBufferCacheTimeInSeconds = 10.;
-    tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
-    tf2_ros::TransformListener tf(tf_buffer);
-    NodeOptions node_options;
-    TrajectoryOptions trajectory_options;
-    std::tie(node_options, trajectory_options) =
-        LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
-
-    auto map_builder =
-        cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
-    Node node(node_options, std::move(map_builder), &tf_buffer,
-              FLAGS_collect_metrics);
-
-    trajectory_options_handle = &(trajectory_options);
-    node_handle = &(node);
-
-    if (!FLAGS_load_state_filename.empty())
+    void Run()
     {
-      node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
-      localization_mode_flag = true;
+      constexpr double kTfBufferCacheTimeInSeconds = 10.;
+      tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
+      tf2_ros::TransformListener tf(tf_buffer);
+      NodeOptions node_options;
+      TrajectoryOptions trajectory_options;
+      std::tie(node_options, trajectory_options) =
+          LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
+
+      auto map_builder =
+          cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
+      Node node(node_options, std::move(map_builder), &tf_buffer,
+                FLAGS_collect_metrics);
+
+      trajectory_options_handle = &(trajectory_options);
+      node_handle = &(node);
+
+      if (!FLAGS_load_state_filename.empty())
+      {
+        node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+        localization_mode_flag = true;
+      }
+
+      if (FLAGS_start_trajectory_with_default_topics)
+      {
+        node.StartTrajectoryWithDefaultTopics(trajectory_options);
+      }
+
+      ros::Subscriber initialpose_sub = node.node_handle()->subscribe("/initialpose", 1, SetInitialPose);
+
+      ::ros::spin();
+
+      node.FinishAllTrajectories();
+      node.RunFinalOptimization();
+
+      if (!FLAGS_save_state_filename.empty())
+      {
+        node.SerializeState(FLAGS_save_state_filename,
+                            true /* include_unfinished_submaps */);
+      }
     }
-
-    if (FLAGS_start_trajectory_with_default_topics)
-    {
-      node.StartTrajectoryWithDefaultTopics(trajectory_options);
-    }
-
-    ros::Subscriber initialpose_sub = node.node_handle()->subscribe("/initialpose", 1, SetInitialPose);
-
-    ::ros::spin();
-
-    node.FinishAllTrajectories();
-    node.RunFinalOptimization();
-
-    if (!FLAGS_save_state_filename.empty())
-    {
-      node.SerializeState(FLAGS_save_state_filename,
-                          true /* include_unfinished_submaps */);
-    }
-  }
-
-} // namespace
+  } // namespace
 } // namespace cartographer_ros
 
 int main(int argc, char **argv)
