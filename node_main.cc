@@ -71,9 +71,10 @@ namespace cartographer_ros
 
     cartographer_ros::Node *node_handle;
     cartographer_ros::TrajectoryOptions *trajectory_options_handle;
-    bool localization_mode_flag = false;
+    bool isLocalizationMode = false;
     std::vector<pbstreamIndex> pbstreams;
-    std::vector<int> trajectory_ids;
+    std::string last_filename;
+    bool firstUpdate = true;
 
     bool isEqual(double a, double b, double epsilon = 1e-9)
     {
@@ -82,32 +83,39 @@ namespace cartographer_ros
 
     void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg)
     {
-      if (localization_mode_flag)
+      if (isLocalizationMode)
       {
         // Close current trajectories
         node_handle->FinishAllTrajectories();
 
         ros::NodeHandle nodehandle("~");
-        std::string last_filename = FLAGS_load_state_filename;
+        last_filename = FLAGS_load_state_filename;
         const geometry_msgs::Pose init = msg->pose.pose;
-        std::string floor_name;
+        std::string current_floor_name;
         bool foundMatched = false;
+        bool hasTrajectory = false;
+        int current_trajectory_id = 0;
+        std::vector<int> trajectory_ids;
 
         for (const auto &elem : pbstreams)
         {
           if (isEqual(elem.initialpose.position.x, init.position.x) && isEqual(elem.initialpose.position.y, init.position.y))
           {
-            floor_name = elem.file_name;
-            foundMatched = true;
-            ROS_INFO("Found matched pbstream.");
-          }
-          else
-          {
-            foundMatched = false;
+            current_floor_name = elem.file_name;
+            if (!elem.trajectory_id < 0)
+            {
+              hasTrajectory = true;
+              current_trajectory_id = elem.trajectory_id;
+            }
+            if (!last_filename == getRosParam<std::string>(nodehandle, current_floor_name, ""))
+            {
+              foundMatched = true;
+              ROS_INFO("Found matched pbstream.");
+            }
           }
         }
 
-        if (foundMatched)
+        if (foundMatched || cnt == 0)
         {
           for (const auto &entry : map_builder_bridge_.GetTrajectoryStates())
           {
@@ -116,29 +124,39 @@ namespace cartographer_ros
 
           for (const auto &elem : pbstreams)
           {
-            floor_name = elem.file_name;
-            if (last_filename == getRosParam<std::string>(nodehandle, floor_name, ""))
+            if (last_filename == getRosParam<std::string>(nodehandle, elem.file_name, ""))
             {
               elem.trajectory_id = trajectory_ids.back();
             }
           }
         }
 
-        // Set trajectory builder options with new initial pose
-        *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose() = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
-
         if (foundMatched)
         {
-
-          FLAGS_load_state_filename = getRosParam<std::string>(nodehandle, floor_name, "");
-          node_handle->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
-          localization_mode_flag = true;
+          if (hasTrajectory)
+          {
+            ::cartographer::mapping::proto::InitialTrajectoryPose initial_trajectory_pose;
+            initial_trajectory_pose.set_to_trajectory_id(current_trajectory_id);
+            *initial_trajectory_pose.mutable_relative_pose() = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
+            initial_trajectory_pose.set_timestamp(cartographer::common::ToUniversal(::cartographer_ros::FromRos(ros::Time(0))));
+            *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose() = initial_trajectory_pose;
+            int new_active_trajectory_id = AddTrajectory(*trajectory_options_handle);
+            isLocalizationMode = true;
+          }
+          else
+          {
+            *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose() = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
+            FLAGS_load_state_filename = getRosParam<std::string>(nodehandle, current_floor_name, "");
+            node_handle->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+            node_handle->StartTrajectoryWithDefaultTopics(*trajectory_options_handle);
+            isLocalizationMode = true;
+          }
         }
-
-        // Start a new trajectory with new initial pose
-        if (FLAGS_start_trajectory_with_default_topics)
+        else
         {
+          *trajectory_options_handle->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose() = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
           node_handle->StartTrajectoryWithDefaultTopics(*trajectory_options_handle);
+          isLocalizationMode = true;
         }
       }
     }
@@ -181,7 +199,6 @@ namespace cartographer_ros
           tempPose.orientation.z = 0.0;
           tempPose.orientation.w = 1.0;
           file_name = floor + "_pbstream";
-
           pbstreams.push_back({tempPose, file_name, -1});
         }
       }
