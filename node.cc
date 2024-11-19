@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/**
+ * @brief int Node::StartTrajectoryIDWithDefaultTopics added.
+ *        It is a copy of Node::StartTrajectoryWithDefaultTopics but returns the trajectory_id of new added trajectory.
+ * @date Nov 19, 2024
+ */
+
 #include "cartographer_ros/node.h"
 
 #include <chrono>

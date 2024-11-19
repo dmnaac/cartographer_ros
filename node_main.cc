@@ -121,8 +121,8 @@ namespace cartographer_ros
 
     /**
      * @brief Set the Initial Pose object
-     * 
-     * @param msg 
+     *
+     * @param msg
      */
     void SetInitialPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg)
     {
