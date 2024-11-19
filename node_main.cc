@@ -141,7 +141,7 @@ namespace cartographer_ros
         for (int i = 0; i < pbstreams.size(); ++i)
         {
           pbstreamIndex &elem = pbstreams[i];
-          if (IsEqual(elem.initialpose.position.x, init.position.x) && isEqual(elem.initialpose.position.y, init.position.y))
+          if (IsEqual(elem.initialpose.position.x, init.position.x) && IsEqual(elem.initialpose.position.y, init.position.y))
           {
 
             if (!elem.trajectory_id < 0)
