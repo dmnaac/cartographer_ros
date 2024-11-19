@@ -74,9 +74,8 @@ namespace cartographer_ros
     bool isLocalizationMode = false;
     std::vector<pbstreamIndex> pbstreams;
     std::string last_filename;
-    bool firstUpdate = true;
 
-    bool isEqual(double a, double b, double epsilon = 1e-9)
+    bool IsEqual(double a, double b, double epsilon = 1e-9)
     {
       return std::fabs(a - b) < epsilon;
     }
@@ -89,7 +88,7 @@ namespace cartographer_ros
      * @param pbstreams: a std::vector containing all loaded pbstreams.
      * @param num_floors: the numbers of pbstream files required to be loaded.
      */
-    void loadPbstreams(ros::NodeHandle &nodehandle, const std::string &load_state_filename, std::vector<pbstreamIndex> &pbstreams, int num_floors = 1)
+    void LoadPbstreams(ros::NodeHandle &nodehandle, const std::string &load_state_filename, std::vector<pbstreamIndex> &pbstreams, int num_floors = 1)
     {
       std::string floor;
       geometry_msgs::Pose tempPose;
@@ -142,7 +141,7 @@ namespace cartographer_ros
         for (int i = 0; i < pbstreams.size(); ++i)
         {
           pbstreamIndex &elem = pbstreams[i];
-          if (isEqual(elem.initialpose.position.x, init.position.x) && isEqual(elem.initialpose.position.y, init.position.y))
+          if (IsEqual(elem.initialpose.position.x, init.position.x) && isEqual(elem.initialpose.position.y, init.position.y))
           {
 
             if (!elem.trajectory_id < 0)
@@ -219,8 +218,8 @@ namespace cartographer_ros
         node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
         last_filename = FLAGS_load_state_filename;
         int num_floors = getRosParam<int>(nodehandle, "/number_of_floors", 1);
-        loadPbstreams(nodehandle, FLAGS_load_state_filename, pbstreams, num_floors);
-        localization_mode_flag = true;
+        LoadPbstreams(nodehandle, FLAGS_load_state_filename, pbstreams, num_floors);
+        isLocalizationMode = true;
       }
 
       if (FLAGS_start_trajectory_with_default_topics)
