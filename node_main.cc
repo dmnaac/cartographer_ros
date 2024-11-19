@@ -138,13 +138,13 @@ namespace cartographer_ros
         std::vector<int> trajectory_ids;
         int pbstream_id = -1;
 
-        for (int i = 0; i < pbstreams.size(); ++i)
+        for (unsigned int i = 0; i < pbstreams.size(); ++i)
         {
           pbstreamIndex &elem = pbstreams[i];
           if (IsEqual(elem.initialpose.position.x, init.position.x) && IsEqual(elem.initialpose.position.y, init.position.y))
           {
 
-            if (!elem.trajectory_id < 0)
+            if (!(elem.trajectory_id < 0))
             {
               hasTrajectory = true;
               current_trajectory_id = elem.trajectory_id;
