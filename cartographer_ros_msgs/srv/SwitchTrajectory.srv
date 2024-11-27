@@ -1,0 +1,4 @@
+string pbstream_directory
+string pbstream_basename
+---
+int32 trajectory_id
