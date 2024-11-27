@@ -1035,6 +1035,7 @@ namespace cartographer_ros
     initial_trajectory_pose.set_timestamp(cartographer::common::ToUniversal(::cartographer_ros::FromRos(ros::Time(0))));
     *trajectory_options.trajectory_builder_options.mutable_initial_trajectory_pose() = initial_trajectory_pose;
     int traj_id = StartTrajectoryIDWithDefaultTopics(trajectory_options);
+    ROS_INFO("Current ACTIVE trajectory id: %d", traj_id);
   }
 
   void
