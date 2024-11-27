@@ -2,7 +2,7 @@
 
 Modified cartographer_ros package for tmrobot.
 
-Now this package is enabled to have the following functionalities:
+This package now includes the following functionalities:
 
 1. The cartographer_ros node subscribes to the /initialpose topic published by RViz. As a result, the robot using Cartographer for localization can now adjust its pose via RViz.
 
