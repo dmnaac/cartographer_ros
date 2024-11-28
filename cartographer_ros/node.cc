@@ -19,6 +19,16 @@
  *        It is a copy of Node::StartTrajectoryWithDefaultTopics but returns the trajectory_id of new added trajectory.
  * @date Nov 19, 2024
  */
+/**
+ * @brief void Node::HandleInitPoseMessage added.
+ *        The message processing function for topic initialpose.
+ * @date  Nov. 27, 2024
+ */
+/**
+ * @brief bool Node::HandleSwitchTrajectory added.
+ *        The server end for the service switch_trajectory.
+ * @date  Nov. 27, 2024
+ */
 
 #include "cartographer_ros/node.h"
 
