@@ -67,13 +67,13 @@ namespace cartographer_ros
       return directoryName.substr(secondLastSlashPos + 1);
     }
 
-    std::string getFileName(const std::string &path)
-    {
-      int lastSlashPos = path.find_last_of("/");
-      std::string fileNameWithExt = path.substr(lastSlashPos + 1);
-      int lastDotPos = fileNameWithExt.find_last_of(".");
-      return fileNameWithExt.substr(0, lastDotPos);
-    }
+    // std::string getFileName(const std::string &path)/
+    // {
+    //   int lastSlashPos = path.find_last_of("/");
+    //   std::string fileNameWithExt = path.substr(lastSlashPos + 1);
+    //   int lastDotPos = fileNameWithExt.find_last_of(".");
+    //   return fileNameWithExt.substr(0, lastDotPos);
+    // }
 
     void Run()
     {

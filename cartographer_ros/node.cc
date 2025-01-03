@@ -41,7 +41,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <filesystem>
+#include <boost/filesystem.hpp>
 
 #include "Eigen/Core"
 #include "absl/memory/memory.h"
@@ -740,16 +740,16 @@ namespace cartographer_ros
 
   bool Node::HandleSwitchTrajectory(::cartographer_ros_msgs::SwitchTrajectory::Request &request, ::cartographer_ros_msgs::SwitchTrajectory::Response &response)
   {
-    std::string path_str = request.pbstream_directory + request.pbstream_basename + ".pbstream";
-    std::filesystem::path file_path = path_str;
+    std::string file_path = request.pbstream_directory + "/" + request.pbstream_basename + ".pbstream";
+    std::string directoryName;
 
-    if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path))
+    if (boost::filesystem::exists(file_path))
     {
-      std::string directoryName = getDirectoryName(request.pbstream_directory);
+      directoryName = getDirectoryName(request.pbstream_directory);
     }
     else
     {
-      LOG(ERROR) << "SwitchTrajectory: file does not exist.";
+      ROS_ERROR("SwitchTrajectory: file does not exist.");
       response.trajectory_id = -1;
       return true;
     }
