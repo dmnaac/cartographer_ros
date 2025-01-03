@@ -50,6 +50,23 @@ namespace cartographer_ros
 {
   namespace
   {
+    std::string getDirectoryName(const std::string &path)
+    {
+      size_t lastSlashPos = path.find_last_of('/');
+      if (lastSlashPos == std::string::npos)
+      {
+        LOG(ERROR) << "Invalid file path.";
+        return "";
+      }
+      std::string directoryName = path.substr(0, lastSlashPos);
+      size_t secondLastSlashPos = directoryName.find_last_of('/', lastSlashPos - 1);
+      if (secondLastSlashPos == std::string::npos)
+      {
+        return directoryName;
+      }
+      return directoryName.substr(secondLastSlashPos + 1);
+    }
+
     std::string getFileName(const std::string &path)
     {
       int lastSlashPos = path.find_last_of("/");
@@ -78,7 +95,7 @@ namespace cartographer_ros
       if (!FLAGS_load_state_filename.empty())
       {
         node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
-        node.pbstreams_.push_back({getFileName(FLAGS_load_state_filename), 0});
+        node.pbstreams_.push_back({getDirectoryName(FLAGS_load_state_filename), 0});
         node.pure_localization_ = true;
       }
 

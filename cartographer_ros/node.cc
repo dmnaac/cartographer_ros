@@ -29,6 +29,11 @@
  *        The server end for the service switch_trajectory.
  * @date  Nov. 27, 2024
  */
+/**
+ * @brief bool Node::HandleSwitchTrajectory modified.
+ *        The name of directory containing new map is added to pbstreams_.
+ * @date  Jan. 03, 2025
+ */
 
 #include "cartographer_ros/node.h"
 
@@ -36,6 +41,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <filesystem>
 
 #include "Eigen/Core"
 #include "absl/memory/memory.h"
@@ -110,6 +116,18 @@ namespace cartographer_ros
         return "DELETED";
       }
       return "";
+    }
+
+    std::string getDirectoryName(const std::string &path)
+    {
+      size_t lastSlashPos = path.find_last_of('/');
+      if (lastSlashPos == std::string::npos)
+      {
+        LOG(ERROR) << "Invalid file path. Absolute path is required.";
+        return "";
+      }
+      std::string directoryName = path.substr(lastSlashPos + 1);
+      return directoryName;
     }
 
   } // namespace
@@ -722,6 +740,20 @@ namespace cartographer_ros
 
   bool Node::HandleSwitchTrajectory(::cartographer_ros_msgs::SwitchTrajectory::Request &request, ::cartographer_ros_msgs::SwitchTrajectory::Response &response)
   {
+    std::string path_str = request.pbstream_directory + request.pbstream_basename + ".pbstream";
+    std::filesystem::path file_path = path_str;
+
+    if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path))
+    {
+      std::string directoryName = getDirectoryName(request.pbstream_directory);
+    }
+    else
+    {
+      LOG(ERROR) << "SwitchTrajectory: file does not exist.";
+      response.trajectory_id = -1;
+      return true;
+    }
+
     FinishAllTrajectories();
     TrajectoryOptions trajectory_options;
     std::tie(std::ignore, trajectory_options) = LoadOptions(configuration_directory_, configuration_basename_);
@@ -732,7 +764,7 @@ namespace cartographer_ros
 
     for (auto &element : pbstreams_)
     {
-      if (request.pbstream_basename == element.filename)
+      if (directoryName == element.filename)
       {
         ::cartographer::mapping::proto::InitialTrajectoryPose initial_trajectory_pose;
         initial_trajectory_pose.set_to_trajectory_id(element.trajectory_id);
@@ -744,11 +776,10 @@ namespace cartographer_ros
       }
     }
 
-    std::string file_path = request.pbstream_directory + request.pbstream_basename + ".pbstream";
     LoadState(file_path, true);
     int traj_id = StartTrajectoryIDWithDefaultTopics(trajectory_options);
     response.trajectory_id = traj_id;
-    pbstreams_.push_back({request.pbstream_basename, traj_id - 1});
+    pbstreams_.push_back({directoryName, traj_id - 1});
 
     return true;
   }
